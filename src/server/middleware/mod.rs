@@ -1,4 +1,5 @@
 pub mod make_cors_middleware;
+pub mod make_logger_middleware;
 
 use anyhow::Error;
 use futures::Future;
@@ -8,7 +9,9 @@ use std::pin::Pin;
 
 use crate::config::Config;
 
-use self::make_cors_middleware::make_cors_middleware;
+use self::{
+    make_cors_middleware::make_cors_middleware, make_logger_middleware::make_logger_middleware,
+};
 
 pub type MiddlewareBefore = Box<dyn Fn(&mut Request<Body>) + Send + Sync>;
 pub type MiddlewareAfter = Box<dyn Fn(&mut Response<Body>) + Send + Sync>;
@@ -74,9 +77,16 @@ impl TryFrom<Config> for Middleware {
         let mut middleware = Middleware::default();
 
         if config.cors().is_some() {
-            let func = make_cors_middleware(config);
+            let func = make_cors_middleware(config.clone());
 
             middleware.after(func);
+        }
+
+        if config.verbose() {
+            let (before, after) = make_logger_middleware(config.clone());
+
+            middleware.before(before);
+            middleware.after(after);
         }
 
         Ok(middleware)
