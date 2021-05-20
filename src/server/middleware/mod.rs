@@ -6,6 +6,7 @@ use futures::Future;
 use hyper::{Body, Request, Response};
 use std::convert::TryFrom;
 use std::pin::Pin;
+use std::sync::Arc;
 
 use crate::config::Config;
 
@@ -16,7 +17,7 @@ use self::{
 pub type MiddlewareBefore = Box<dyn Fn(&mut Request<Body>) + Send + Sync>;
 pub type MiddlewareAfter = Box<dyn Fn(&mut Response<Body>) + Send + Sync>;
 pub type Handler = Box<
-    dyn Fn(Request<Body>) -> Pin<Box<dyn Future<Output = Response<Body>> + Send + Sync>>
+    dyn Fn(Arc<Request<Body>>) -> Pin<Box<dyn Future<Output = Response<Body>> + Send + Sync>>
         + Send
         + Sync,
 >;
@@ -51,7 +52,8 @@ impl Middleware {
             fx(&mut request);
         }
 
-        let mut response = handler(request).await;
+        let request = Arc::new(request);
+        let mut response = handler(Arc::clone(&request)).await;
 
         for fx in self.after.iter() {
             fx(&mut response);

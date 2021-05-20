@@ -18,13 +18,14 @@ use crate::server::middleware::Handler;
 
 /// Creates a `middleware::Handler` which makes use of the provided `FileExplorer`
 pub fn make_file_explorer_handler(file_explorer: Arc<FileExplorer>) -> Handler {
-    Box::new(move |request: Request<Body>| {
+    Box::new(move |request: Arc<Request<Body>>| {
         let file_explorer = Arc::clone(&file_explorer);
+        let req_path = request.uri().to_string();
 
         Box::pin(async move {
             if request.method() == Method::GET {
                 return file_explorer
-                    .resolve(request.uri().to_string())
+                    .resolve(req_path)
                     .await
                     .map_err(|e| {
                         HttpResponseBuilder::new()
