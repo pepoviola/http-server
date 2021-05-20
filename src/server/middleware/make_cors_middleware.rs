@@ -87,7 +87,7 @@ pub fn make_cors_middleware(config: Config) -> MiddlewareAfter {
         ));
     }
 
-    Box::new(move |response: &mut Response<Body>| {
+    Box::new(move |_: _, response: &mut Response<Body>| {
         let headers = response.headers_mut();
 
         cors_headers.iter().for_each(|(header, value)| {

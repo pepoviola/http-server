@@ -15,7 +15,7 @@ use self::{
 };
 
 pub type MiddlewareBefore = Box<dyn Fn(&mut Request<Body>) + Send + Sync>;
-pub type MiddlewareAfter = Box<dyn Fn(&mut Response<Body>) + Send + Sync>;
+pub type MiddlewareAfter = Box<dyn Fn(Arc<Request<Body>>, &mut Response<Body>) + Send + Sync>;
 pub type Handler = Box<
     dyn Fn(Arc<Request<Body>>) -> Pin<Box<dyn Future<Output = Response<Body>> + Send + Sync>>
         + Send
@@ -56,7 +56,7 @@ impl Middleware {
         let mut response = handler(Arc::clone(&request)).await;
 
         for fx in self.after.iter() {
-            fx(&mut response);
+            fx(Arc::clone(&request), &mut response);
         }
 
         response
@@ -79,16 +79,15 @@ impl TryFrom<Config> for Middleware {
         let mut middleware = Middleware::default();
 
         if config.cors().is_some() {
-            let func = make_cors_middleware(config.clone());
+            let cors_middleware = make_cors_middleware(config.clone());
 
-            middleware.after(func);
+            middleware.after(cors_middleware);
         }
 
         if config.verbose() {
-            let (before, after) = make_logger_middleware(config.clone());
+            let logger_middleware = make_logger_middleware(config.clone());
 
-            middleware.before(before);
-            middleware.after(after);
+            middleware.after(logger_middleware);
         }
 
         Ok(middleware)
